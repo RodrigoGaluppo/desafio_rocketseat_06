@@ -1,5 +1,4 @@
-/*
-import { getCustomRepository, getRepository, In, TransactionRepository, Any } from "typeorm"
+import { getCustomRepository, getRepository, In, TransactionRepository} from "typeorm"
 import csvParse from 'csv-parse';
 import fs from 'fs';
 import Transaction from '../models/Transaction';
@@ -55,4 +54,3 @@ class ImportTransactionsService {
 }
 
 export default ImportTransactionsService;
-*/
