@@ -1,8 +1,9 @@
-import { getCustomRepository, getRepository, In, TransactionRepository} from "typeorm"
+import { getCustomRepository, getRepository, In } from 'typeorm';
 import csvParse from 'csv-parse';
 import fs from 'fs';
 import Transaction from '../models/Transaction';
-import Category from "../models/Category";
+import Category from '../models/Category';
+import TransactionRepository from '../repositories/TransactionsRepository';
 
 interface CSVTransaction {
   title: string;
@@ -32,10 +33,10 @@ class ImportTransactionsService {
         return cell.trim();
       });
       if (!title || !type || !value) return;
-
       categories.push(category);
       transactions.push({ title, type, value, category });
     });
+
     await new Promise(resolve => parseCsv.on('end', resolve));
 
     const exists = await categoriesRepository.find({
@@ -43,13 +44,29 @@ class ImportTransactionsService {
         type: In(categories),
       },
     });
+    const CategoriesTitles = exists.map((category: Category) => category.title);
+    const addCategoryTitles = categories
+      .filter(category => !CategoriesTitles.includes(category))
+      .filter((value, index, self) => self.indexOf(value) === index);
+    const newCategories = categoriesRepository.create(
+      addCategoryTitles.map(title => ({ title })),
+    );
 
-    const CategoriesTitles = exists.map(() => (category: Category) =>
-      category.title,
+    await categoriesRepository.save(newCategories);
+    const finalCategories = [...newCategories, ...exists];
+    const createdTransaction = transactionsRepository.create(
+      transactions.map(transaction => ({
+        title: transaction.title,
+        type: transaction.type,
+        value: transaction.value,
+        category: finalCategories.find(
+          category => category.title === transaction.category,
+        ),
+      })),
     );
-    const addCategoryTitles = categories.filter(
-      category => !CategoriesTitles.includes(category),
-    );
+    await transactionsRepository.save(createdTransaction);
+    fs.promises.unlink(filePath);
+    return createdTransaction;
   }
 }
 
